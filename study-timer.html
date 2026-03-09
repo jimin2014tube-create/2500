@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>공부용 타이머 (간단)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",'Malgun Gothic',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#f5f7fb;margin:0}
+    .card{background:white;padding:24px;border-radius:12px;box-shadow:0 6px 20px rgba(20,30,60,0.08);width:360px}
+    h1{font-size:18px;margin:0 0 12px}
+    label{display:block;margin:8px 0 4px;font-size:13px;color:#333}
+    input[type=number]{width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0}
+    .big{font-size:28px;font-weight:600;margin:16px 0}
+    .buttons{display:flex;gap:8px;margin-top:12px}
+    button{flex:1;padding:10px;border-radius:8px;border:0;background:#2563eb;color:white;font-weight:600;cursor:pointer}
+    button.ghost{background:#eef2ff;color:#2563eb}
+    button.danger{background:#ef4444}
+    .meta{font-size:13px;color:#555;margin-top:8px}
+    .small{font-size:12px;color:#666}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>공부용 타이머</h1>
+
+    <label>전체 목표시간 (시간 단위, 예: 2500)</label>
+    <input id="totalHours" type="number" min="0" step="1" value="2500" />
+
+    <div class="big" id="remainingDisplay">남은 시간: 2500:00:00</div>
+    <div class="meta">경과: <span id="elapsedDisplay">0:00:00</span> · 상태: <span id="status">정지</span></div>
+
+    <div class="buttons">
+      <button id="startBtn">Start</button>
+      <button id="pauseBtn" class="ghost">Pause</button>
+      <button id="stopBtn" class="danger">Stop</button>
+    </div>
+
+    <p class="small">설명: 전체 목표시간에서 실제 경과 시간을 빼서 남은 시간을 표시합니다. 일시정지(Pause), 시작(Start), 정지(Stop: 리셋) 기능이 있습니다.</p>
+  </div>
+
+  <script>
+    // DOM
+    const totalHoursInput = document.getElementById('totalHours');
+    const remainingDisplay = document.getElementById('remainingDisplay');
+    const elapsedDisplay = document.getElementById('elapsedDisplay');
+    const statusSpan = document.getElementById('status');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+
+    // 상태 변수
+    let totalSeconds = Number(totalHoursInput.value || 0) * 3600;
+    let intervalId = null;
+    let startTimestamp = null; // 시작 시점 (ms)
+    let pausedElapsed = 0; // 일시정지 시까지 누적된 경과(초)
+
+    function secondsToHMS(sec){
+      sec = Math.max(0, Math.floor(sec));
+      const h = Math.floor(sec/3600); const m = Math.floor((sec%3600)/60); const s = sec%60;
+      return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    function updateDisplays(){
+      const elapsed = getElapsedSeconds();
+      const remaining = Math.max(0, totalSeconds - elapsed);
+      remainingDisplay.textContent = `남은 시간: ${secondsToHMS(remaining)}`;
+      elapsedDisplay.textContent = secondsToHMS(elapsed);
+      if (remaining <= 0){
+        statusSpan.textContent = '완료';
+        stopInterval();
+      }
+    }
+
+    function getElapsedSeconds(){
+      if (startTimestamp){
+        return pausedElapsed + ((Date.now() - startTimestamp)/1000);
+      }
+      return pausedElapsed;
+    }
+
+    function startInterval(){
+      if (intervalId) return; // 이미 실행중
+      startTimestamp = Date.now();
+      intervalId = setInterval(updateDisplays, 250);
+      statusSpan.textContent = '진행중';
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      stopBtn.disabled = false;
+    }
+
+    function stopInterval(){
+      if (intervalId){
+        clearInterval(intervalId); intervalId = null;
+      }
+      startTimestamp = null;
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+    }
+
+    // 버튼 이벤트
+    startBtn.addEventListener('click', ()=>{
+      // totalSeconds 업데이트 (사용자가 변경했을 수 있음)
+      totalSeconds = Number(totalHoursInput.value || 0) * 3600;
+      startInterval();
+    });
+
+    pauseBtn.addEventListener('click', ()=>{
+      if (!intervalId) return; // 실행중이 아니면 무시
+      // 현재까지 경과를 pausedElapsed로 고정
+      pausedElapsed = getElapsedSeconds();
+      stopInterval();
+      statusSpan.textContent = '일시정지';
+    });
+
+    stopBtn.addEventListener('click', ()=>{
+      // 완전 리셋 (경과 초기화)
+      pausedElapsed = 0;
+      stopInterval();
+      // totalSeconds는 입력값을 기준으로 다시 설정
+      totalSeconds = Number(totalHoursInput.value || 0) * 3600;
+      updateDisplays();
+      statusSpan.textContent = '정지';
+    });
+
+    // 입력 변경 시 즉시 반영 (리셋 없이 남은시간에만 반영)
+    totalHoursInput.addEventListener('change', ()=>{
+      totalSeconds = Number(totalHoursInput.value || 0) * 3600;
+      updateDisplays();
+    });
+
+    // 초기화
+    pauseBtn.disabled = true;
+    stopBtn.disabled = false;
+    updateDisplays();
+  </script>
+</body>
+</html>
